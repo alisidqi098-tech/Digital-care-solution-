@@ -1,4 +1,5 @@
-import { Bot, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { AIFace } from "./AIFace";
 import { NotificationsPanel } from "./NotificationsPanel";
 
 const AVATAR =
@@ -28,8 +29,8 @@ export const TopBar = ({ clinicName, doctorName, notifications = 0 }) => (
         data-testid="ai-status-indicator"
         className="flex items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-400/[0.06] py-1.5 pl-2 pr-4"
       >
-        <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-emerald-400/15 animate-pulse-ring">
-          <Bot className="h-5 w-5 text-emerald-300" />
+        <span className="animate-pulse-ring rounded-full">
+          <AIFace size={36} />
         </span>
         <span className="hidden md:block">
           <span className="block font-mono text-[11px] font-bold tracking-[0.18em] text-emerald-300">AI ATTIVA 24/7</span>

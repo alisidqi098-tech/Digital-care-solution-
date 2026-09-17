@@ -38,6 +38,12 @@ Vedi /app/memory/test_credentials.md — admin@digitalcare.ai / Admin2026! ; bel
 ## Implementato (17 Set 2026 — quarta iterazione)
 - Filtri Analitiche: selettore periodo 7/30/90 giorni (dati seed estesi a 90gg), summary periodo precedente dal backend, badge delta (+/-% e punti) su ogni KPI con "vs N giorni precedenti"
 
+## Implementato (17 Set 2026 — quinta iterazione)
+- Faccina AI brand (componente AIFace: cerchio nero, anello ciano glow, due occhi ovali con blink CSS) in TopBar status pill e logo sidebar
+- Chiamate AI waitlist limitate al piano Elite: gate backend 403 + UI locked "Solo Elite" per piani inferiori
+- Riassunto esito chiamata: dopo ~6s POST /api/waitlist/{id}/call/summary genera via GPT-5.4 esito (confermato/non_risposto/da_richiamare) + riassunto 2 frasi, card espandibile sotto il paziente + notifica call_completed
+- Calendario: bottone "Aggiungi Paziente" con modale completo (nome, telefono, data, ora, motivo, tipo visita 1ª/2ª, prezzo, urgenza, note) → POST /api/calendar/appointments, dettaglio giorno mostra telefono/tipo visita/prezzo/note
+
 ## Backlog
 - P1: Impostazioni AI (tono, orari, regole) persistite per clinica
 - P2: Reset password self-service

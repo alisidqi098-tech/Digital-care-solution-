@@ -197,6 +197,35 @@ async def get_calendar(start: str, end: str, user: dict = Depends(require_clinic
     return {"appointments": appts}
 
 
+class AppointmentCreate(BaseModel):
+    date: str
+    time: str
+    patient: str
+    phone: str
+    treatment: str
+    price: float = 0
+    visit_type: str = "prima"
+    urgency: bool = False
+    notes: Optional[str] = ""
+
+
+@api_router.post("/calendar/appointments")
+async def add_appointment(input: AppointmentCreate, user: dict = Depends(require_clinic)):
+    appt = {
+        "date": input.date,
+        "time": input.time,
+        "patient": input.patient.strip(),
+        "treatment": "Urgenza" if input.urgency else input.treatment,
+        "source": "segreteria",
+        "phone": input.phone.strip(),
+        "price": input.price,
+        "visit_type": input.visit_type,
+        "notes": input.notes or "",
+    }
+    await db.clinic_data.update_one({"clinic_id": user["clinic_id"]}, {"$push": {"appointments": appt}})
+    return appt
+
+
 @api_router.get("/notifications")
 async def get_notifications(user: dict = Depends(require_clinic)):
     items = await db.notifications.find({"clinic_id": user["clinic_id"]}, {"_id": 0}).sort("created_at", -1).to_list(20)
@@ -212,12 +241,52 @@ async def read_all_notifications(user: dict = Depends(require_clinic)):
 
 @api_router.post("/waitlist/{waitlist_id}/call")
 async def call_waitlist(waitlist_id: str, user: dict = Depends(require_clinic)):
+    clinic = await db.clinics.find_one({"id": user["clinic_id"]}, {"_id": 0})
+    if clinic.get("plan") != "elite":
+        raise HTTPException(status_code=403, detail="Le chiamate AI sono disponibili solo sul piano Elite")
     data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]}, {"_id": 0})
     entry = next((w for w in (data or {}).get("waitlist", []) if w["id"] == waitlist_id), None)
     if not entry:
         raise HTTPException(status_code=404, detail="Paziente non trovato in lista d'attesa")
     await push_notification(user["clinic_id"], "call_started", f"L'AI ha avviato la chiamata a {entry['patient']} (lista d'attesa - {entry['treatment']})")
     return {"ok": True, "patient": entry["patient"]}
+
+
+@api_router.post("/waitlist/{waitlist_id}/call/summary")
+async def waitlist_call_summary(waitlist_id: str, user: dict = Depends(require_clinic)):
+    clinic = await db.clinics.find_one({"id": user["clinic_id"]}, {"_id": 0})
+    if clinic.get("plan") != "elite":
+        raise HTTPException(status_code=403, detail="Le chiamate AI sono disponibili solo sul piano Elite")
+    data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]}, {"_id": 0})
+    entry = next((w for w in (data or {}).get("waitlist", []) if w["id"] == waitlist_id), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Paziente non trovato in lista d'attesa")
+    esito, summary = "da_richiamare", "Il paziente non ha confermato. Consigliato un nuovo tentativo domani mattina."
+    try:
+        chat = LlmChat(
+            api_key=os.environ["EMERGENT_LLM_KEY"],
+            session_id=f"callsum-{uuid.uuid4()}",
+            system_message=(
+                "Generi riassunti realistici e concisi dell'esito di chiamate automatiche di uno studio dentistico. "
+                "Rispondi SOLO con un oggetto JSON valido, nient'altro."
+            ),
+        ).with_model("openai", "gpt-5.4")
+        prompt = (
+            f"Lo studio {clinic['name']} ha fatto chiamare dall'assistente AI il paziente {entry['patient']} "
+            f"(in lista d'attesa per: {entry['treatment']}; nota: {entry['note']}) per proporgli un appuntamento anticipato. "
+            "Scrivi l'esito della chiamata in JSON: "
+            '{"esito": "confermato" | "non_risposto" | "da_richiamare", "summary": "riassunto di massimo 2 frasi in italiano, con dettagli plausibili (orario proposto, preferenze del paziente)"}. '
+            "Nel 70% dei casi il paziente conferma."
+        )
+        raw = await chat.send_message(UserMessage(text=prompt))
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        parsed = json.loads(match.group(0)) if match else {}
+        if parsed.get("esito") in ("confermato", "non_risposto", "da_richiamare") and parsed.get("summary"):
+            esito, summary = parsed["esito"], parsed["summary"]
+    except Exception as exc:
+        logger.error("Call summary LLM error: %s", exc)
+    await push_notification(user["clinic_id"], "call_completed", f"Esito chiamata a {entry['patient']}: {summary}")
+    return {"esito": esito, "summary": summary, "patient": entry["patient"]}
 
 
 class ChatHistoryInput(BaseModel):

@@ -6,6 +6,7 @@ import api from "@/lib/api";
 const TYPE_META = {
   booking_ai: { icon: CalendarCheck, color: "text-emerald-300", bg: "border-emerald-400/30 bg-emerald-400/10" },
   call_started: { icon: Phone, color: "text-cyan-300", bg: "border-cyan-400/30 bg-cyan-400/10" },
+  call_completed: { icon: Phone, color: "text-emerald-300", bg: "border-emerald-400/30 bg-emerald-400/10" },
   recovered: { icon: Undo2, color: "text-amber-300", bg: "border-amber-400/30 bg-amber-400/10" },
   takeover: { icon: ShieldAlert, color: "text-red-300", bg: "border-red-400/30 bg-red-400/10" },
 };

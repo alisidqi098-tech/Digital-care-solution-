@@ -120,7 +120,7 @@ export default function DashboardView() {
             <div className="grid gap-6 xl:grid-cols-10">
               <div className="space-y-6 xl:col-span-7">
                 <AgendaLive appointments={data.appointments} />
-                <Waitlist entries={data.waitlist} />
+                <Waitlist entries={data.waitlist} plan={data.clinic.plan} />
               </div>
               <div className="xl:col-span-3">
                 <LiveChatAI patientName={data.chat_patient} />

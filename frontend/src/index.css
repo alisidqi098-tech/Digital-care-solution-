@@ -80,6 +80,22 @@
         scrollbar-width: thin;
         scrollbar-color: rgba(0, 245, 212, 0.2) transparent;
     }
+    .ai-eye {
+        display: inline-block;
+        border-radius: 999px;
+        background: #00e5ff;
+        box-shadow: 0 0 8px rgba(0, 229, 255, 0.9), 0 0 18px rgba(0, 229, 255, 0.45);
+        animation: ai-blink 4.6s ease-in-out infinite;
+    }
+}
+
+@keyframes ai-blink {
+    0%, 91%, 100% {
+        transform: scaleY(1);
+    }
+    95% {
+        transform: scaleY(0.1);
+    }
 }
 
 @layer base {

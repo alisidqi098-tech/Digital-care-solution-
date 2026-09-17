@@ -1,4 +1,5 @@
-import { LayoutDashboard, CalendarDays, MessagesSquare, BarChart3, Settings, LogOut, Bot } from "lucide-react";
+import { LayoutDashboard, CalendarDays, MessagesSquare, BarChart3, Settings, LogOut } from "lucide-react";
+import { AIFace } from "./AIFace";
 
 const ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, testid: "sidebar-nav-dashboard" },
@@ -14,9 +15,7 @@ export const Sidebar = ({ active, onNavigate, onLogout }) => (
     className="group fixed left-0 top-0 z-40 flex h-screen w-20 flex-col border-r border-cyan-400/10 bg-[#0A0F1A]/85 py-6 backdrop-blur-xl transition-[width] duration-300 ease-out hover:w-60"
   >
     <div className="flex items-center gap-3 px-5">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 shadow-[0_0_18px_rgba(0,245,212,0.25)]">
-        <Bot className="h-5 w-5 text-cyan-300" />
-      </span>
+      <AIFace size={40} className="shrink-0" />
       <span className="whitespace-nowrap font-display text-sm font-bold tracking-tight text-slate-100 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
         Digital Care <span className="text-cyan-300">AI</span>
       </span>
