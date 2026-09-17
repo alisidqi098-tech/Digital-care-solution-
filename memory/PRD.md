@@ -44,8 +44,13 @@ Vedi /app/memory/test_credentials.md — admin@digitalcare.ai / Admin2026! ; bel
 - Riassunto esito chiamata: dopo ~6s POST /api/waitlist/{id}/call/summary genera via GPT-5.4 esito (confermato/non_risposto/da_richiamare) + riassunto 2 frasi, card espandibile sotto il paziente + notifica call_completed
 - Calendario: bottone "Aggiungi Paziente" con modale completo (nome, telefono, data, ora, motivo, tipo visita 1ª/2ª, prezzo, urgenza, note) → POST /api/calendar/appointments, dettaglio giorno mostra telefono/tipo visita/prezzo/note
 
+## Implementato (17 Set 2026 — sesta iterazione)
+- Impostazioni AI: GET/PUT /api/settings per clinica (tono professionale/amichevole/formale, orari, giorni, durata slot, auto-conferma, regole custom) — il system prompt della chat le usa davvero (verificato: tono amichevole + regola "chiedi se c'è gonfiore" seguita dall'AI)
+- Modifica Appuntamenti: id su tutti gli appuntamenti (migrazione), PATCH/DELETE /api/calendar/appointments/{id}, bottoni sposta/cancella nel dettaglio giorno con modale e doppia conferma
+- AIFace: occhi che si muovono con direzione e intervalli casuali (non ripetitivo), blink mantenuto, nessuna bocca
+
 ## Backlog
-- P1: Impostazioni AI (tono, orari, regole) persistite per clinica
+- P2: Reset password self-service
 - P2: Reset password self-service
 - P2: Dati reali per clinica (oggi ogni nuova clinica parte con dati demo)
 - P2: Invio report PDF via email settimanale automatico (Resend)

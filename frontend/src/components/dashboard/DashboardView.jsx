@@ -13,6 +13,7 @@ import { LiveChatAI } from "./LiveChatAI";
 import CalendarView from "./CalendarView";
 import ChatHistoryView from "./ChatHistoryView";
 import AnalyticsView from "./AnalyticsView";
+import ImpostazioniView from "./ImpostazioniView";
 import { PlaceholderView } from "./PlaceholderView";
 import BackgroundFX from "./BackgroundFX";
 
@@ -61,6 +62,8 @@ export default function DashboardView() {
           <ChatHistoryView />
         ) : view === "analitiche" ? (
           <AnalyticsView />
+        ) : view === "impostazioni" ? (
+          <ImpostazioniView />
         ) : view !== "dashboard" ? (
           <PlaceholderView view={view} />
         ) : !data ? (

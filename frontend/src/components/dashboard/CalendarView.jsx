@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Bot, User, Loader2, CalendarDays, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Bot, User, Loader2, CalendarDays, Plus, X, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, addWeeks,
@@ -156,13 +156,105 @@ const AddAppointmentModal = ({ onClose, onSaved }) => {
   );
 };
 
+const EditAppointmentModal = ({ appt, onClose, onSaved }) => {
+  const [date, setDate] = useState(appt.date);
+  const [time, setTime] = useState(appt.time);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.patch(`/calendar/appointments/${appt.id}`, { date, time });
+      toast.success(`${appt.patient} spostato`, {
+        description: `${format(new Date(`${date}T${time}`), "EEEE d MMMM 'alle' HH:mm", { locale: it })}`,
+      });
+      onSaved();
+      onClose();
+    } catch {
+      toast.error("Errore durante lo spostamento");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <motion.div
+      data-testid="edit-appointment-modal"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-6 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.94, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        exit={{ scale: 0.94, y: 20 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="glass w-full max-w-sm rounded-3xl p-8"
+      >
+        <div className="mb-6 flex items-start justify-between">
+          <div>
+            <h3 className="font-display text-xl font-bold text-slate-50">Sposta appuntamento</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {appt.patient} · {appt.treatment}
+            </p>
+          </div>
+          <button data-testid="edit-appt-close" onClick={onClose} className="text-slate-500 transition-colors hover:text-slate-300">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Nuova data</label>
+            <input data-testid="edit-appt-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={INPUT_CLS} />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">Nuova ora</label>
+            <input data-testid="edit-appt-time" type="time" required value={time} onChange={(e) => setTime(e.target.value)} className={INPUT_CLS} />
+          </div>
+          <button
+            data-testid="edit-appt-submit"
+            type="submit"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 py-3.5 font-display text-sm font-bold text-slate-950 shadow-[0_0_26px_rgba(0,245,212,0.3)] transition-all hover:shadow-[0_0_40px_rgba(0,245,212,0.45)] disabled:opacity-70"
+          >
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            {saving ? "Salvataggio…" : "Conferma spostamento"}
+          </button>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 export default function CalendarView() {
   const [cursor, setCursor] = useState(new Date());
   const [mode, setMode] = useState("month");
   const [selected, setSelected] = useState(new Date());
   const [appts, setAppts] = useState(null);
   const [modal, setModal] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  const handleDelete = async (a) => {
+    if (deleteId !== a.id) {
+      setDeleteId(a.id);
+      setTimeout(() => setDeleteId((cur) => (cur === a.id ? null : cur)), 3000);
+      return;
+    }
+    try {
+      await api.delete(`/calendar/appointments/${a.id}`);
+      toast.success(`${a.patient} rimosso dall'agenda`);
+      setDeleteId(null);
+      setReloadKey((k) => k + 1);
+    } catch {
+      toast.error("Errore durante la cancellazione");
+    }
+  };
 
   const range = useMemo(() => {
     if (mode === "month") {
@@ -383,6 +475,28 @@ export default function CalendarView() {
                     Segreteria
                   </span>
                 )}
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    data-testid={`appt-edit-${i}`}
+                    onClick={() => setEditTarget(a)}
+                    title="Sposta appuntamento"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700 text-slate-500 transition-colors hover:border-cyan-400/40 hover:text-cyan-300"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    data-testid={`appt-delete-${i}`}
+                    onClick={() => handleDelete(a)}
+                    title={deleteId === a.id ? "Clicca di nuovo per confermare" : "Cancella appuntamento"}
+                    className={`flex h-8 items-center justify-center rounded-lg border px-2 text-[11px] font-semibold transition-colors ${
+                      deleteId === a.id
+                        ? "border-red-500/60 bg-red-500/15 text-red-300"
+                        : "border-slate-700 text-slate-500 hover:border-red-500/40 hover:text-red-400"
+                    }`}
+                  >
+                    {deleteId === a.id ? "Conferma" : <Trash2 className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -391,6 +505,7 @@ export default function CalendarView() {
 
       <AnimatePresence>
         {modal && <AddAppointmentModal onClose={() => setModal(false)} onSaved={() => setReloadKey((k) => k + 1)} />}
+        {editTarget && <EditAppointmentModal appt={editTarget} onClose={() => setEditTarget(null)} onSaved={() => setReloadKey((k) => k + 1)} />}
       </AnimatePresence>
     </main>
   );

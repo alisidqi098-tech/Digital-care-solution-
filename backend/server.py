@@ -212,6 +212,7 @@ class AppointmentCreate(BaseModel):
 @api_router.post("/calendar/appointments")
 async def add_appointment(input: AppointmentCreate, user: dict = Depends(require_clinic)):
     appt = {
+        "id": str(uuid.uuid4()),
         "date": input.date,
         "time": input.time,
         "patient": input.patient.strip(),
@@ -307,9 +308,19 @@ async def chat_reply(input: ChatHistoryInput, user: dict = Depends(require_clini
         f"{a['time']} {a['patient']} ({a['treatment']})"
         for a in data["appointments"] if a.get("date") == today
     )
+    settings = {**DEFAULT_SETTINGS, **(data.get("settings") or {})}
+    tone_map = {
+        "professionale": "professionale, rassicurante e competente",
+        "amichevole": "caldo, amichevole e informale",
+        "formale": "formale e impeccabile, dando sempre del Lei",
+    }
+    rules_line = f"Regole dello studio da rispettare SEMPRE: {settings['rules']}. " if settings.get("rules") else ""
     system_message = (
         f"Sei Digital Care AI, l'assistente virtuale dello {clinic['name']} del {clinic['doctor_name']}. "
-        "Rispondi SEMPRE in italiano, con tono cordiale, empatico e professionale, in stile messaggio chat: massimo 2 frasi brevi. "
+        f"Tono di voce: {tone_map.get(settings['tone'], tone_map['professionale'])}. "
+        "Rispondi SEMPRE in italiano, in stile messaggio chat: massimo 2 frasi brevi. "
+        f"Orari dello studio: {settings['work_start']}-{settings['work_end']}. "
+        f"{rules_line}"
         f"Agenda di oggi: {agenda}. Slot ancora liberi oggi: 11:30 (solo urgenze) e 16:00. "
         "Se il paziente descrive un'urgenza o chiede un appuntamento, proponi uno degli slot liberi. "
         "SOLO quando il paziente accetta esplicitamente uno slot, conferma la prenotazione aggiungendo ALLA FINE del messaggio il marcatore [[PRENOTATO:HH:MM]] con l'orario confermato. "
@@ -399,6 +410,83 @@ async def get_conversation(conv_id: str, user: dict = Depends(require_clinic)):
     if not conv:
         raise HTTPException(status_code=404, detail="Conversazione non trovata")
     return conv
+
+
+DEFAULT_SETTINGS = {
+    "tone": "professionale",
+    "work_start": "09:00",
+    "work_end": "18:00",
+    "work_days": [1, 2, 3, 4, 5],
+    "slot_duration": 30,
+    "auto_confirm": True,
+    "rules": "",
+}
+
+
+@api_router.get("/settings")
+async def get_settings(user: dict = Depends(require_clinic)):
+    data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]}, {"_id": 0})
+    return {**DEFAULT_SETTINGS, **((data or {}).get("settings") or {})}
+
+
+class SettingsUpdate(BaseModel):
+    tone: Optional[str] = None
+    work_start: Optional[str] = None
+    work_end: Optional[str] = None
+    work_days: Optional[List[int]] = None
+    slot_duration: Optional[int] = None
+    auto_confirm: Optional[bool] = None
+    rules: Optional[str] = None
+
+
+@api_router.put("/settings")
+async def update_settings(input: SettingsUpdate, user: dict = Depends(require_clinic)):
+    updates = {k: v for k, v in input.model_dump().items() if v is not None}
+    if "tone" in updates and updates["tone"] not in ("professionale", "amichevole", "formale"):
+        raise HTTPException(status_code=400, detail="Tono non valido")
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nessuna modifica")
+    await db.clinic_data.update_one(
+        {"clinic_id": user["clinic_id"]},
+        {"$set": {f"settings.{k}": v for k, v in updates.items()}},
+    )
+    data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]}, {"_id": 0})
+    return {**DEFAULT_SETTINGS, **((data or {}).get("settings") or {})}
+
+
+class AppointmentUpdate(BaseModel):
+    date: Optional[str] = None
+    time: Optional[str] = None
+
+
+@api_router.patch("/calendar/appointments/{appt_id}")
+async def move_appointment(appt_id: str, input: AppointmentUpdate, user: dict = Depends(require_clinic)):
+    data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]})
+    appts = (data or {}).get("appointments", [])
+    found = False
+    for a in appts:
+        if a.get("id") == appt_id:
+            if input.date:
+                a["date"] = input.date
+            if input.time:
+                a["time"] = input.time
+            found = True
+            break
+    if not found:
+        raise HTTPException(status_code=404, detail="Appuntamento non trovato")
+    await db.clinic_data.update_one({"clinic_id": user["clinic_id"]}, {"$set": {"appointments": appts}})
+    return {"ok": True}
+
+
+@api_router.delete("/calendar/appointments/{appt_id}")
+async def delete_appointment(appt_id: str, user: dict = Depends(require_clinic)):
+    result = await db.clinic_data.update_one(
+        {"clinic_id": user["clinic_id"]},
+        {"$pull": {"appointments": {"id": appt_id}}},
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Appuntamento non trovato")
+    return {"ok": True}
 
 
 @api_router.get("/analytics")
@@ -689,6 +777,7 @@ def default_clinic_data(clinic_id: str) -> dict:
         "clinic_id": clinic_id,
         "notifications": 3,
         "metrics": {"appointments_ai": 48, "delta_pct": 12, "recovered": 14, "hours_saved": 56, "value_eur": 3200},
+        "settings": dict(DEFAULT_SETTINGS),
         "appointments": generate_appointments(),
         "waitlist": [
             {"id": "w1", "patient": "Elena Vitale", "treatment": "Igiene", "note": "Preferisce mattina"},
@@ -855,6 +944,10 @@ async def migrate_clinic_data():
         appts = data.get("appointments", [])
         if appts and "date" not in appts[0]:
             updates["appointments"] = generate_appointments()
+        elif any("id" not in a for a in appts):
+            updates["appointments"] = [{**a, "id": a.get("id") or str(uuid.uuid4())} for a in appts]
+        if "settings" not in data:
+            updates["settings"] = dict(DEFAULT_SETTINGS)
         if len(data.get("analytics", [])) < 90:
             updates["analytics"] = generate_analytics(data["clinic_id"])
         if updates:
