@@ -1,0 +1,96 @@
+{
+  "project_info": {
+    "name": "Digital Care AI - SaaS High-Ticket Dental Dashboard",
+    "target_audience": "Italian High-Ticket Dental Clinics (Studio Dentistico Bellini)",
+    "aesthetic": "Awwwards-Level Luxury Cybernetic Dark Mode, Neon Cyan/Aqua accents, Glassmorphic Frosted Surfaces, High Tech Precision",
+    "ticket_value": "€1,000/month premium feeling",
+    "tech_stack": "React js (.js / .jsx), Tailwind CSS, Framer Motion, Lucide React Icons, Canvas/Glass styling"
+  },
+  "typography": {
+    "heading_font": "Outfit / Plus Jakarta Sans",
+    "body_font": "Plus Jakarta Sans / Inter",
+    "mono_font": "JetBrains Mono / Fira Code",
+    "rules": {
+      "H1": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+      "H2": "text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight",
+      "H3": "text-lg sm:text-xl font-semibold tracking-normal",
+      "Body": "text-sm sm:text-base text-slate-300 leading-relaxed",
+      "Caption_Overline": "text-xs font-mono uppercase tracking-[0.2em] text-cyan-400/80"
+    },
+    "forbidden_fonts": [
+      "Space Grotesk"
+    ]
+  },
+  "colors": {
+    "background_main": "#080C14",
+    "background_secondary": "#0D1320",
+    "card_glass": "rgba(13, 19, 32, 0.75)",
+    "card_border": "rgba(0, 245, 212, 0.18)",
+    "card_border_hover": "rgba(0, 245, 212, 0.45)",
+    "primary_neon_cyan": "#00F5D4",
+    "primary_cyan_glow": "rgba(0, 245, 212, 0.35)",
+    "secondary_electric_blue": "#00E5FF",
+    "accent_emerald_green": "#00FF87",
+    "takeover_alert_red": "#FF3B30",
+    "takeover_alert_glow": "rgba(255, 59, 48, 0.4)",
+    "text_primary": "#F8FAFC",
+    "text_secondary": "#94A3B8",
+    "text_muted": "#64748B",
+    "forbidden_colors": [
+      "#1B93A4"
+    ]
+  },
+  "visual_enhancers": {
+    "glassmorphism": "backdrop-blur-xl bg-slate-950/70 border border-cyan-500/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]",
+    "neon_glow_card": "hover:shadow-[0_0_25px_rgba(0,245,212,0.25)] transition-all duration-300 hover:border-cyan-400/50",
+    "ai_status_ping": "relative flex h-3 w-3 inline-flex rounded-full bg-emerald-400 animate-ping opacity-75",
+    "smartphone_chat_sim": "rounded-[40px] border-4 border-slate-800 bg-slate-950 p-4 shadow-[0_0_50px_rgba(0,245,212,0.15)] relative overflow-hidden",
+    "roi_value_neon": "text-3xl lg:text-4xl font-black bg-gradient-to-r from-emerald-400 via-cyan-400 to-teal-300 bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(0,245,212,0.5)]"
+  },
+  "layout_structure": {
+    "sidebar": "Fixed narrow left navigation (Width 80px - expanded 240px on hover/toggle) with links: Dashboard, Calendario, Chat & Pazienti, Analitiche, Impostazioni AI",
+    "topbar": "Sticky header with Logo 'Digital Care AI' + Clinic Switcher 'Studio Dentistico Bellini', AI Status Pill ('AI ATTIVA 24/7 - In ascolto'), Notification Bell with live count, and User Profile ('Dr. Marco Bellini')",
+    "hero_metrics": "Grid of 4 ROI Cards (Appuntamenti Fissati dall'AI: 48 [+12%], Disdette Recuperate: 14, Ore Segreteria Risparmiate: 56h, Valore Generato Stimato: €3.200 in neon green)",
+    "main_grid": "Grid with 70% left column (Agenda Live table + Waitlist with 'Fai chiamare dall'AI' action) and 30% right column (Live AI Simulated Chat on Smartphone frame + Big Glowing Emergency TAKEOVER button)"
+  },
+  "image_urls": {
+    "dental_clinic_interior": "https://images.unsplash.com/photo-1629909613654-28e377c37b09?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBkZW50YWwlMjBjbGluaWMlMjBpbnRlcmlvciUyMGRvY3RvciUyMGx1eHVyeXxlbnwwfHx8fDE3ODk2NjkwOTh8MA&ixlib=rb-4.1.0&q=85",
+    "dental_equipment": "https://images.pexels.com/photos/4687148/pexels-photo-4687148.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+    "doctor_avatar": "https://images.unsplash.com/photo-1622253692010-333f2da6031d?crop=entropy&cs=srgb&fm=jpg&w=400&q=80"
+  },
+  "data_testid_requirements": [
+    "topbar-logo",
+    "topbar-clinic-name",
+    "ai-status-indicator",
+    "topbar-notifications",
+    "topbar-user-profile",
+    "sidebar-nav-dashboard",
+    "sidebar-nav-calendario",
+    "sidebar-nav-chat",
+    "sidebar-nav-analitiche",
+    "sidebar-nav-impostazioni",
+    "roi-card-appuntamenti",
+    "roi-card-disdette",
+    "roi-card-ore",
+    "roi-card-valore-stimato",
+    "agenda-live-container",
+    "agenda-table",
+    "agenda-badge-ai",
+    "agenda-badge-segreteria",
+    "waitlist-container",
+    "waitlist-ai-call-button",
+    "live-chat-smartphone-container",
+    "live-chat-message-patient",
+    "live-chat-message-ai",
+    "takeover-button",
+    "takeover-modal"
+  ],
+  "instructions_to_main_agent": [
+    "CRITICAL: Implementation must use React JavaScript files (.js / .jsx), NOT TypeScript (.tsx) files.",
+    "Ensure all interactive components (buttons, links, inputs, tables, badges) contain exact data-testid attributes.",
+    "Build a stunning glassmorphic ultra-dark UI (#080C14 background) with glowing neon cyan/aqua accents (#00F5D4, #00E5FF) and emerald positive ROI highlights (#00FF87).",
+    "Implement the typewriter animation for the Live AI Chat simulated smartphone dialogue and real-time pulse indicator for the 24/7 AI listener status.",
+    "Add full interactive functionality for the 'TAKEOVER: Intervieni e blocca l'AI' button with a dramatic emergency modal/banner confirmation.",
+    "Add 'Fai chiamare dall'AI' automated outbound call simulation with status toast/modal feedback when clicked."
+  ]
+}
