@@ -31,10 +31,12 @@ Vedi /app/memory/test_credentials.md — admin@digitalcare.ai / Admin2026! ; bel
 - Report ROI PDF: fpdf2 brandizzato (header dark, 4 box metriche, sintesi settimanale, riga ROI%), download da dashboard clinica (/api/report/roi) e da console admin per clinica (/api/admin/clinics/{id}/report)
 - Login: bottoni accesso demo rapido "Entra come Super Admin" / "Entra come Studio Bellini"
 
+## Implementato (17 Set 2026 — terza iterazione)
+- Analitiche: endpoint /api/analytics (30 giorni daily seedati deterministicamente per clinica), vista con 4 KPI (conversione chat 83%, conversazioni, prenotazioni, valore) + 3 grafici recharts (andamento appuntamenti area, conversione chat bar, valore cumulato)
+- Memoria Conversazioni: collection conversations, /api/chat/reply accetta conversation_id e persiste messaggi a fine stream (done event ritorna conversation_id), endpoint lista/dettaglio, vista "Chat & Pazienti" con archivio, badge "Prenotato", 3 conversazioni seedate
+
 ## Backlog
-- P1: Analitiche con grafici (recharts) per clinica
 - P1: Impostazioni AI (tono, orari, regole) persistite per clinica
-- P1: Persistenza conversazioni chat in Mongo (oggi in memoria frontend)
 - P2: Reset password self-service
 - P2: Dati reali per clinica (oggi ogni nuova clinica parte con dati demo)
 - P2: Invio report PDF via email settimanale automatico (Resend)

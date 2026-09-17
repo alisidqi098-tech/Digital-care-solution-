@@ -222,6 +222,8 @@ async def call_waitlist(waitlist_id: str, user: dict = Depends(require_clinic)):
 
 class ChatHistoryInput(BaseModel):
     history: List[dict]
+    conversation_id: Optional[str] = None
+    patient_name: Optional[str] = None
 
 
 BOOKING_RE = re.compile(r"\[\[PRENOTATO:(\d{2}:\d{2})\]\]")
@@ -281,13 +283,70 @@ async def chat_reply(input: ChatHistoryInput, user: dict = Depends(require_clini
         slot = booking.group(1) if booking else None
         if slot:
             await push_notification(clinic_id, "booking_ai", f"L'AI ha fissato un appuntamento per le {slot} dalla chat pazienti")
-        yield f"data: {json.dumps({'done': True, 'booking_confirmed': bool(slot), 'slot': slot})}\n\n"
+        reply_text = BOOKING_RE.sub("", full).strip()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        messages_to_save = [{"from": m.get("from", "patient"), "text": m.get("text", ""), "ts": now_iso} for m in input.history]
+        messages_to_save.append({"from": "ai", "text": reply_text, "ts": now_iso})
+        conv_id = input.conversation_id
+        if conv_id:
+            await db.conversations.update_one(
+                {"id": conv_id, "clinic_id": clinic_id},
+                {"$set": {"messages": messages_to_save, "updated_at": now_iso, "booking_confirmed": bool(slot)}},
+            )
+        else:
+            conv_id = str(uuid.uuid4())
+            await db.conversations.insert_one({
+                "id": conv_id,
+                "clinic_id": clinic_id,
+                "patient_name": input.patient_name or "Paziente",
+                "messages": messages_to_save,
+                "booking_confirmed": bool(slot),
+                "created_at": now_iso,
+                "updated_at": now_iso,
+            })
+        yield f"data: {json.dumps({'done': True, 'booking_confirmed': bool(slot), 'slot': slot, 'conversation_id': conv_id})}\n\n"
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@api_router.get("/chat/conversations")
+async def list_conversations(user: dict = Depends(require_clinic)):
+    convs = await db.conversations.find({"clinic_id": user["clinic_id"]}, {"_id": 0}).sort("updated_at", -1).to_list(50)
+    for c in convs:
+        msgs = c.get("messages", [])
+        c["preview"] = msgs[-1]["text"][:90] if msgs else ""
+        c["message_count"] = len(msgs)
+        c.pop("messages", None)
+    return {"conversations": convs}
+
+
+@api_router.get("/chat/conversations/{conv_id}")
+async def get_conversation(conv_id: str, user: dict = Depends(require_clinic)):
+    conv = await db.conversations.find_one({"id": conv_id, "clinic_id": user["clinic_id"]}, {"_id": 0})
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversazione non trovata")
+    return conv
+
+
+@api_router.get("/analytics")
+async def get_analytics(user: dict = Depends(require_clinic)):
+    data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]}, {"_id": 0})
+    daily = (data or {}).get("analytics", [])
+    total_chats = sum(d["chats"] for d in daily)
+    total_bookings = sum(d["chat_bookings"] for d in daily)
+    summary = {
+        "total_chats": total_chats,
+        "total_bookings": total_bookings,
+        "conversion_rate": round(total_bookings / total_chats * 100) if total_chats else 0,
+        "appointments_ai": sum(d["appointments_ai"] for d in daily),
+        "value_eur": sum(d["value_eur"] for d in daily),
+        "recovered": sum(d["recovered"] for d in daily),
+    }
+    return {"daily": daily, "summary": summary}
 
 
 def build_roi_pdf(clinic: dict, metrics: dict) -> bytes:
@@ -640,12 +699,93 @@ async def seed_demo_clinic():
     logger.info("Clinica demo seedata: %s", email)
 
 
+def generate_analytics(clinic_id: str) -> list:
+    import random
+    rng = random.Random(clinic_id)
+    today = datetime.now(timezone.utc).date()
+    out = []
+    for i in range(29, -1, -1):
+        d = today - timedelta(days=i)
+        weekday = d.weekday() < 5
+        base = rng.randint(2, 5) if weekday else rng.randint(0, 1)
+        chats = base + rng.randint(1, 4)
+        bookings = max(0, chats - rng.randint(0, 2))
+        out.append({
+            "date": d.isoformat(),
+            "appointments_ai": base,
+            "appointments_total": base + (rng.randint(1, 3) if weekday else 0),
+            "chats": chats,
+            "chat_bookings": bookings,
+            "value_eur": bookings * rng.choice([60, 80, 100, 120]),
+            "recovered": rng.randint(0, 2) if weekday else 0,
+        })
+    return out
+
+
+async def seed_conversations(clinic_id: str):
+    if await db.conversations.count_documents({"clinic_id": clinic_id}) > 0:
+        return
+    now = datetime.now(timezone.utc)
+    samples = [
+        (
+            "Elena Vitale",
+            [
+                {"from": "patient", "text": "Buongiorno, quanto costa una pulizia dei denti?"},
+                {"from": "ai", "text": "Buongiorno Elena, l'igiene professionale parte da 80€. Vuole che le fissi un appuntamento questa settimana?"},
+                {"from": "patient", "text": "Ci penso e vi faccio sapere, grazie"},
+                {"from": "ai", "text": "Certo, resto a disposizione per qualsiasi cosa. Buona giornata!"},
+            ],
+            False,
+            130,
+        ),
+        (
+            "Marco Serra",
+            [
+                {"from": "patient", "text": "Ciao, devo spostare la mia igiene di giovedì, si può?"},
+                {"from": "ai", "text": "Certo Marco! Ho disponibilità venerdì alle 10:00 oppure lunedì alle 9:30. Quale preferisci?"},
+                {"from": "patient", "text": "Venerdì alle 10 va benissimo"},
+                {"from": "ai", "text": "Fatto, igiene spostata a venerdì alle 10:00. Ti mando il promemoria il giorno prima!"},
+            ],
+            True,
+            1600,
+        ),
+        (
+            "Giulia Romano",
+            [
+                {"from": "patient", "text": "Buongiorno, ho un forte dolore a un molare. C'è posto oggi?"},
+                {"from": "ai", "text": "Buongiorno Giulia, mi dispiace per il dolore. Oggi possiamo vederti alle 11:30 per un'urgenza oppure alle 16:00: quale preferisci?"},
+                {"from": "patient", "text": "Perfetto, confermo le 11:30!"},
+                {"from": "ai", "text": "Perfetto, la aspettiamo oggi alle 11:30 per l'urgenza. Se il dolore aumenta o hai gonfiore, avvisaci subito."},
+            ],
+            True,
+            60,
+        ),
+    ]
+    for patient_name, msgs, booked, mins in samples:
+        ts = (now - timedelta(minutes=mins)).isoformat()
+        await db.conversations.insert_one({
+            "id": str(uuid.uuid4()),
+            "clinic_id": clinic_id,
+            "patient_name": patient_name,
+            "messages": [{**m, "ts": ts} for m in msgs],
+            "booking_confirmed": booked,
+            "created_at": ts,
+            "updated_at": ts,
+        })
+
+
 async def migrate_clinic_data():
     async for data in db.clinic_data.find({}):
+        updates = {}
         appts = data.get("appointments", [])
         if appts and "date" not in appts[0]:
-            await db.clinic_data.update_one({"_id": data["_id"]}, {"$set": {"appointments": generate_appointments()}})
+            updates["appointments"] = generate_appointments()
+        if "analytics" not in data:
+            updates["analytics"] = generate_analytics(data["clinic_id"])
+        if updates:
+            await db.clinic_data.update_one({"_id": data["_id"]}, {"$set": updates})
         await seed_notifications(data["clinic_id"])
+        await seed_conversations(data["clinic_id"])
 
 
 @app.on_event("startup")

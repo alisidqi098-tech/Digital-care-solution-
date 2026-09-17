@@ -11,6 +11,8 @@ import { AgendaLive } from "./AgendaLive";
 import { Waitlist } from "./Waitlist";
 import { LiveChatAI } from "./LiveChatAI";
 import CalendarView from "./CalendarView";
+import ChatHistoryView from "./ChatHistoryView";
+import AnalyticsView from "./AnalyticsView";
 import { PlaceholderView } from "./PlaceholderView";
 import BackgroundFX from "./BackgroundFX";
 
@@ -55,6 +57,10 @@ export default function DashboardView() {
         <TopBar clinicName={data?.clinic?.name || user.clinic_name} doctorName={user.name} />
         {view === "calendario" ? (
           <CalendarView />
+        ) : view === "chat" ? (
+          <ChatHistoryView />
+        ) : view === "analitiche" ? (
+          <AnalyticsView />
         ) : view !== "dashboard" ? (
           <PlaceholderView view={view} />
         ) : !data ? (

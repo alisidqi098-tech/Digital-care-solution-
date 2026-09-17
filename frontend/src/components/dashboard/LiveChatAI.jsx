@@ -18,6 +18,7 @@ export const LiveChatAI = ({ patientName = "Giulia Romano" }) => {
   const [takeover, setTakeover] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  const [conversationId, setConversationId] = useState(null);
   const scrollRef = useRef(null);
   const startedRef = useRef(false);
   const timersRef = useRef(new Set());
@@ -36,7 +37,11 @@ export const LiveChatAI = ({ patientName = "Giulia Romano" }) => {
       const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/chat/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ history: history.map(({ from, text }) => ({ from, text })) }),
+        body: JSON.stringify({
+          history: history.map(({ from, text }) => ({ from, text })),
+          conversation_id: conversationId,
+          patient_name: patientName,
+        }),
       });
       if (!res.ok) throw new Error("chat failed");
       setAiTyping(false);
@@ -60,10 +65,13 @@ export const LiveChatAI = ({ patientName = "Giulia Romano" }) => {
             const text = acc;
             setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text } : m)));
           }
-          if (payload.done && payload.booking_confirmed) {
-            toast.success("Appuntamento confermato dall'AI", {
-              description: `Slot ${payload.slot} bloccato in agenda. Notifica aggiunta al Centro Notifiche.`,
-            });
+          if (payload.done) {
+            if (payload.conversation_id) setConversationId(payload.conversation_id);
+            if (payload.booking_confirmed) {
+              toast.success("Appuntamento confermato dall'AI", {
+                description: `Slot ${payload.slot} bloccato in agenda. Conversazione salvata nello storico.`,
+              });
+            }
           }
         }
       }
