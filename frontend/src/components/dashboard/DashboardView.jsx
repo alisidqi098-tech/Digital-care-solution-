@@ -17,6 +17,7 @@ import ImpostazioniView from "./ImpostazioniView";
 import { PlaceholderView } from "./PlaceholderView";
 import BackgroundFX from "./BackgroundFX";
 import { AIFace } from "./AIFace";
+import { SlotAssignModal } from "./SlotAssignModal";
 
 const TICKER = [
   "AI ATTIVA 24/7",
@@ -45,12 +46,15 @@ export default function DashboardView() {
   const [view, setView] = useState("dashboard");
   const [data, setData] = useState(null);
   const [slots, setSlots] = useState([]);
+  const [assignTarget, setAssignTarget] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     api.get("/dashboard").then((r) => setData(r.data)).catch(() => {});
-    const today = new Date().toISOString().slice(0, 10);
-    api.get(`/slots?date=${today}`).then((r) => setSlots(r.data.slots)).catch(() => {});
-  }, []);
+    api.get(`/slots?date=${todayIso}`).then((r) => setSlots(r.data.slots)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   const today = new Date().toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
 
@@ -59,7 +63,12 @@ export default function DashboardView() {
       <BackgroundFX />
       <Sidebar active={view} onNavigate={setView} onLogout={logout} />
       <div className="relative z-10 pl-20">
-        <TopBar clinicName={data?.clinic?.name || user.clinic_name} doctorName={user.name} />
+        <TopBar
+          clinicName={data?.clinic?.name || user.clinic_name}
+          doctorName={user.name}
+          clinic={data?.clinic}
+          onOpenSettings={() => setView("impostazioni")}
+        />
         {view === "calendario" ? (
           <CalendarView />
         ) : view === "chat" ? (
@@ -143,15 +152,30 @@ export default function DashboardView() {
                   >
                     <span className="flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-300/70">
                       <Sparkle className="h-3 w-3" />
-                      Slot liberi oggi
+                      Slot liberi oggi — clicca per assegnare
                     </span>
                     {slots.slice(0, 6).map((s) => (
-                      <span key={s} className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 font-mono text-[11px] font-bold text-cyan-300">
+                      <button
+                        key={s}
+                        data-testid={`slot-chip-${s.replace(":", "")}`}
+                        onClick={() => setAssignTarget(s)}
+                        title="Assegna a un paziente in lista d'attesa"
+                        className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 font-mono text-[11px] font-bold text-cyan-300 transition-all hover:scale-105 hover:border-cyan-300/60 hover:bg-cyan-400/20 hover:shadow-[0_0_14px_rgba(0,245,212,0.35)]"
+                      >
                         {s}
-                      </span>
+                      </button>
                     ))}
                     {slots.length > 6 && <span className="font-mono text-[10px] text-slate-500">+{slots.length - 6} altri</span>}
                   </motion.div>
+                )}
+                {assignTarget && data && (
+                  <SlotAssignModal
+                    slot={assignTarget}
+                    date={todayIso}
+                    waitlist={data.waitlist}
+                    onClose={() => setAssignTarget(null)}
+                    onAssigned={() => setReloadKey((k) => k + 1)}
+                  />
                 )}
                 <AgendaLive appointments={data.appointments} />
                 <Waitlist entries={data.waitlist} plan={data.clinic.plan} />

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Bot, User, Loader2, CalendarDays, Plus, X, Pencil, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Bot, User, Loader2, CalendarDays, Plus, X, Pencil, Trash2, Phone } from "lucide-react";
 import { toast } from "sonner";
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, addWeeks,
@@ -449,20 +449,29 @@ export default function CalendarView() {
               <div key={i} className="flex items-center gap-4 py-3">
                 <span className="w-14 shrink-0 font-mono text-sm font-bold text-cyan-300">{a.time}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-slate-100">{a.patient}</p>
-                  <span className={`mt-1 inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${TREATMENT_STYLES[a.treatment] || TREATMENT_STYLES.Controllo}`}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-slate-100">{a.patient}</p>
+                    {a.phone && (
+                      <span className="flex items-center gap-1.5 rounded-md border border-cyan-400/30 bg-cyan-400/[0.08] px-2 py-0.5 font-mono text-[11px] font-bold text-cyan-200">
+                        <Phone className="h-3 w-3" />
+                        {a.phone}
+                      </span>
+                    )}
+                    {a.price ? (
+                      <span className="rounded-md border border-emerald-400/30 bg-emerald-400/[0.08] px-2 py-0.5 font-mono text-[11px] font-bold text-emerald-300">
+                        €{a.price}
+                      </span>
+                    ) : null}
+                    {a.visit_type && (
+                      <span className="rounded-md border border-slate-600/60 bg-slate-800/60 px-2 py-0.5 text-[11px] font-semibold text-slate-300">
+                        {a.visit_type === "prima" ? "1ª visita" : "2ª visita"}
+                      </span>
+                    )}
+                  </div>
+                  <span className={`mt-1.5 inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${TREATMENT_STYLES[a.treatment] || TREATMENT_STYLES.Controllo}`}>
                     {a.treatment}
                   </span>
-                  {(a.phone || a.price || a.visit_type) && (
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      {[
-                        a.phone,
-                        a.visit_type ? (a.visit_type === "prima" ? "1ª visita" : "2ª visita") : null,
-                        a.price ? `€${a.price}` : null,
-                        a.notes || null,
-                      ].filter(Boolean).join(" · ")}
-                    </p>
-                  )}
+                  {a.notes && <p className="mt-1 text-[11px] text-slate-500">{a.notes}</p>}
                 </div>
                 {a.source === "ai" ? (
                   <span className="flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-400/35 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-300">

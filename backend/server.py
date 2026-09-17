@@ -352,7 +352,7 @@ async def get_dashboard(user: dict = Depends(require_clinic)):
         raise HTTPException(status_code=404, detail="Dati dello studio non trovati")
     today = datetime.now(timezone.utc).date().isoformat()
     return {
-        "clinic": {"name": clinic["name"], "doctor_name": clinic["doctor_name"], "plan": clinic["plan"]},
+        "clinic": {"name": clinic["name"], "doctor_name": clinic["doctor_name"], "plan": clinic["plan"], "email": clinic["email"]},
         "metrics": data["metrics"],
         "appointments": sorted((a for a in data["appointments"] if a.get("date") == today), key=lambda a: a["time"]),
         "waitlist": data["waitlist"],
@@ -616,6 +616,35 @@ def compute_free_slots(data: dict, settings: dict, target_date) -> list:
             slots.append(label)
         t += dur
     return slots
+
+
+class SlotAssignInput(BaseModel):
+    waitlist_id: str
+    date: str
+    time: str
+
+
+@api_router.post("/slots/assign")
+async def assign_slot(input: SlotAssignInput, user: dict = Depends(require_clinic)):
+    data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]})
+    entry = next((w for w in (data or {}).get("waitlist", []) if w["id"] == input.waitlist_id), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Paziente non trovato in lista d'attesa")
+    appt = {
+        "id": str(uuid.uuid4()),
+        "date": input.date,
+        "time": input.time,
+        "patient": entry["patient"],
+        "treatment": entry["treatment"],
+        "source": "segreteria",
+        "notes": f"Da lista d'attesa · {entry['note']}",
+    }
+    await db.clinic_data.update_one(
+        {"clinic_id": user["clinic_id"]},
+        {"$push": {"appointments": appt}, "$pull": {"waitlist": {"id": input.waitlist_id}}},
+    )
+    await push_notification(user["clinic_id"], "booking_ai", f"{entry['patient']} assegnato allo slot delle {input.time} dalla lista d'attesa")
+    return {"ok": True, "appointment": appt}
 
 
 @api_router.get("/slots")

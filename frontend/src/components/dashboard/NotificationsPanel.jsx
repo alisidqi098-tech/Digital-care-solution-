@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, CalendarCheck, Phone, Undo2, ShieldAlert, CheckCheck } from "lucide-react";
+import { Bell, CalendarCheck, Phone, Undo2, ShieldAlert } from "lucide-react";
 import api from "@/lib/api";
 
 const TYPE_META = {
@@ -48,16 +48,21 @@ export const NotificationsPanel = () => {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const markAllRead = async () => {
-    await api.post("/notifications/read-all").catch(() => {});
-    load();
+  const toggleOpen = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && unread > 0) {
+      await api.post("/notifications/read-all").catch(() => {});
+      setUnread(0);
+      setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    }
   };
 
   return (
     <div ref={ref} className="relative">
       <button
         data-testid="topbar-notifications"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         className={`relative flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${
           open ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-300" : "border-cyan-400/15 bg-[#0D1320]/70 text-slate-300 hover:border-cyan-400/40 hover:text-cyan-300"
         }`}
@@ -83,18 +88,8 @@ export const NotificationsPanel = () => {
             <div className="flex items-center justify-between border-b border-slate-800/80 px-5 py-4">
               <div>
                 <p className="font-display text-sm font-bold text-slate-50">Centro Notifiche</p>
-                <p className="text-[11px] text-slate-500">Eventi dell'AI in tempo reale</p>
+                <p className="text-[11px] text-slate-500">Eventi dell'AI in tempo reale — lette automaticamente all'apertura</p>
               </div>
-              {unread > 0 && (
-                <button
-                  data-testid="notifications-read-all"
-                  onClick={markAllRead}
-                  className="flex items-center gap-1.5 rounded-full border border-cyan-400/30 bg-cyan-400/[0.07] px-3 py-1.5 text-[11px] font-semibold text-cyan-300 transition-colors hover:bg-cyan-400/15"
-                >
-                  <CheckCheck className="h-3.5 w-3.5" />
-                  Segna lette
-                </button>
-              )}
             </div>
             <div className="chat-scroll max-h-[380px] divide-y divide-slate-800/60 overflow-y-auto">
               {items.length === 0 && <p className="px-5 py-8 text-center text-sm text-slate-500">Nessuna notifica.</p>}

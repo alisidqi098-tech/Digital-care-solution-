@@ -55,6 +55,12 @@ Vedi /app/memory/test_credentials.md — admin@digitalcare.ai / Admin2026! ; bel
 - Faccina AI hero: grande (96px) centrata in cima alla dashboard con pulse ring, saluto centrato
 - Agenda del giorno ordinata per orario
 
+## Implementato (17 Set 2026 — ottava iterazione)
+- Prenota dallo Slot: chip slot liberi cliccabili in dashboard → modale assegnazione paziente da waitlist (POST /api/slots/assign: crea appuntamento, rimuove da waitlist, notifica)
+- Notifiche: apertura pannello = mark-all-read automatico (badge scompare), rimosso bottone manuale
+- Dropdown Studio in TopBar: piano con badge, dottore, email, azioni rapide (Impostazioni AI, Report ROI) — endpoint dashboard ora include clinic.email
+- Dettaglio giorno calendario: telefono (chip ciano mono), prezzo (chip verde), tipo visita accanto al nome paziente
+
 ## Backlog
 - P2: Dati reali per clinica (oggi ogni nuova clinica parte con dati demo)
 - P2: Reset password self-service
