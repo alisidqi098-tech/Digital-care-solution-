@@ -23,6 +23,13 @@ api_router = APIRouter(prefix="/api")
 import io
 import json
 import re
+import secrets
+import time
+import ipaddress
+import httpx
+from html import escape
+from html.parser import HTMLParser
+from urllib.parse import urlparse
 from fastapi.responses import StreamingResponse
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 from fpdf import FPDF
@@ -163,6 +170,173 @@ async def me(user: dict = Depends(get_current_user)):
     return await public_user(user)
 
 
+EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Digital Care AI")
+EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO")
+APP_URL = os.environ.get("APP_URL", "")
+
+_SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
+_CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
+             "send us your password", "enter your password below", "confirm your card number",
+             "your full card number", "seed phrase", "recovery phrase", "verify your card",
+             "social security number", "confirm your bank details")
+_HOSTISH = re.compile(r"\b(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", re.I)
+
+
+def _host_ok(host: str) -> bool:
+    if not host or "xn--" in host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    return not any(host == s or host.endswith("." + s) for s in _SHORTENERS)
+
+
+def _same_site(shown: str, real: str) -> bool:
+    return shown == real or real.endswith("." + shown) or shown.endswith("." + real)
+
+
+class _EmailScan(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags, self.urls, self.anchors = set(), [], []
+        self._href, self._text = None, []
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.add(tag.lower())
+        self.urls += [v for k, v in attrs if k.lower() in ("href", "src") and v]
+        if tag.lower() == "a":
+            self._href = dict((k.lower(), v) for k, v in attrs).get("href")
+            self._text = []
+
+    def handle_data(self, data):
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag):
+        if tag.lower() == "a" and self._href is not None:
+            self.anchors.append((self._href, "".join(self._text)))
+            self._href, self._text = None, []
+
+
+def _assert_safe_email(subject: str, html: str) -> None:
+    scan = _EmailScan()
+    scan.feed(html)
+    if scan.tags & {"form", "input", "textarea", "select"}:
+        raise ValueError("No forms or input fields in email (G2)")
+    body = f"{subject}\n{html}".lower()
+    for p in _CRED_ASK:
+        if p in body:
+            raise ValueError(f"Email asks the recipient for credentials: {p!r} (G2)")
+    for url in scan.urls:
+        low = url.strip().lower()
+        if low.startswith(("mailto:", "tel:", "cid:", "#")):
+            continue
+        if not low.startswith("https://"):
+            raise ValueError(f"Email links/assets must be absolute https: {url!r} (G3)")
+        host = urlparse(low).hostname or ""
+        if not _host_ok(host) or urlparse(low).username is not None:
+            raise ValueError(f"Shortened, numeric-host or credential-bearing URL: {url!r} (G3)")
+    for href, text in scan.anchors:
+        real = urlparse(href.strip().lower()).hostname or ""
+        if not real:
+            continue
+        for m in _HOSTISH.finditer(text):
+            if not _same_site(m.group(1).lower(), real):
+                raise ValueError(f"Anchor text {m.group(1)!r} ≠ real link host {real!r} (G3)")
+
+
+async def send_email(*, to: str, subject: str, html: str, reply_to: str | None = None):
+    _assert_safe_email(subject, html)
+    payload = {"to": [to], "subject": subject, "html": html, "from_name": EMAIL_FROM_NAME}
+    if reply_to or EMAIL_REPLY_TO:
+        payload["contact_email"] = reply_to or EMAIL_REPLY_TO
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{EMAIL_BASE_URL}/api/v1/email/send",
+                headers={"X-Email-Key": EMAIL_KEY},
+                json=payload,
+            )
+        resp.raise_for_status()
+        return resp.json().get("id")
+    except Exception as e:
+        logger.error("Email send error: %s", e)
+        return None
+
+
+def reset_email_html(name: str, link: str) -> str:
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#080C14;padding:32px 0">'
+        '<tr><td align="center">'
+        '<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#0D1320;border:1px solid rgba(0,245,212,0.25);border-radius:16px;padding:36px;font-family:Arial,sans-serif">'
+        '<tr><td>'
+        '<p style="color:#00F5D4;font-size:20px;font-weight:bold;margin:0 0 4px">DIGITAL CARE AI</p>'
+        f'<p style="color:#F8FAFC;font-size:16px;margin:16px 0 8px">Ciao {escape(name)},</p>'
+        '<p style="color:#94A3B8;font-size:14px;line-height:1.6;margin:0 0 24px">Abbiamo ricevuto una richiesta di reimpostazione della password del tuo gestionale. Il link è valido per 1 ora.</p>'
+        f'<p style="margin:0 0 24px"><a href="{link}" style="display:inline-block;background:#00F5D4;color:#080C14;font-weight:bold;font-size:14px;text-decoration:none;padding:14px 28px;border-radius:10px">Reimposta la password</a></p>'
+        '<p style="color:#64748B;font-size:12px;line-height:1.6;margin:0">Se non hai richiesto tu il reset, ignora questa email. Non ti chiederemo mai la password via email.</p>'
+        f'<p style="color:#475569;font-size:11px;margin:24px 0 0">Inviato da {escape(EMAIL_FROM_NAME)}</p>'
+        '</td></tr></table></td></tr></table>'
+    )
+
+
+class ForgotInput(BaseModel):
+    email: EmailStr
+
+
+class ResetInput(BaseModel):
+    token: str
+    password: str
+
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(input: ForgotInput):
+    email = input.email.strip().lower()
+    identifier = f"fp:{email}"
+    attempts = await db.login_attempts.find_one({"identifier": identifier})
+    if attempts and attempts.get("count", 0) >= 3:
+        last = attempts.get("last_attempt")
+        if last and datetime.now(timezone.utc) - last < timedelta(minutes=15):
+            raise HTTPException(status_code=429, detail="Troppe richieste. Riprova tra 15 minuti.")
+    await db.login_attempts.update_one(
+        {"identifier": identifier},
+        {"$inc": {"count": 1}, "$set": {"last_attempt": datetime.now(timezone.utc)}},
+        upsert=True,
+    )
+    user = await db.users.find_one({"email": email})
+    if user:
+        token = secrets.token_urlsafe(32)
+        await db.password_reset_tokens.insert_one({
+            "token": token,
+            "email": email,
+            "expires_at": int(time.time()) + 3600,
+            "used": False,
+        })
+        link = f"{APP_URL}/reset-password?token={token}"
+        await send_email(
+            to=email,
+            subject=f"Reimposta la tua password — {EMAIL_FROM_NAME}",
+            html=reset_email_html(user["name"], link),
+        )
+    return {"ok": True}
+
+
+@api_router.post("/auth/reset-password")
+async def reset_password(input: ResetInput):
+    doc = await db.password_reset_tokens.find_one({"token": input.token})
+    if not doc or doc.get("used") or doc.get("expires_at", 0) < int(time.time()):
+        raise HTTPException(status_code=400, detail="Link non valido o scaduto. Richiedi un nuovo link.")
+    if len(input.password) < 8:
+        raise HTTPException(status_code=400, detail="La password deve avere almeno 8 caratteri")
+    await db.users.update_one({"email": doc["email"]}, {"$set": {"password_hash": hash_password(input.password)}})
+    await db.password_reset_tokens.update_one({"token": input.token}, {"$set": {"used": True}})
+    return {"ok": True}
+
+
 @api_router.post("/auth/logout")
 async def logout(response: Response):
     response.delete_cookie("access_token", path="/")
@@ -180,7 +354,7 @@ async def get_dashboard(user: dict = Depends(require_clinic)):
     return {
         "clinic": {"name": clinic["name"], "doctor_name": clinic["doctor_name"], "plan": clinic["plan"]},
         "metrics": data["metrics"],
-        "appointments": [a for a in data["appointments"] if a.get("date") == today],
+        "appointments": sorted((a for a in data["appointments"] if a.get("date") == today), key=lambda a: a["time"]),
         "waitlist": data["waitlist"],
         "chat_script": data.get("chat_script", []),
         "chat_patient": data.get("chat_patient", "Paziente"),
@@ -315,13 +489,15 @@ async def chat_reply(input: ChatHistoryInput, user: dict = Depends(require_clini
         "formale": "formale e impeccabile, dando sempre del Lei",
     }
     rules_line = f"Regole dello studio da rispettare SEMPRE: {settings['rules']}. " if settings.get("rules") else ""
+    free_slots = compute_free_slots(data, settings, datetime.now(timezone.utc).date())
+    slots_line = ", ".join(free_slots[:6]) if free_slots else "nessuno slot libero oggi: proponi il primo giorno feriale disponibile"
     system_message = (
         f"Sei Digital Care AI, l'assistente virtuale dello {clinic['name']} del {clinic['doctor_name']}. "
         f"Tono di voce: {tone_map.get(settings['tone'], tone_map['professionale'])}. "
         "Rispondi SEMPRE in italiano, in stile messaggio chat: massimo 2 frasi brevi. "
         f"Orari dello studio: {settings['work_start']}-{settings['work_end']}. "
         f"{rules_line}"
-        f"Agenda di oggi: {agenda}. Slot ancora liberi oggi: 11:30 (solo urgenze) e 16:00. "
+        f"Agenda di oggi: {agenda}. Slot liberi oggi (calcolati dagli orari reali dello studio): {slots_line}. "
         "Se il paziente descrive un'urgenza o chiede un appuntamento, proponi uno degli slot liberi. "
         "SOLO quando il paziente accetta esplicitamente uno slot, conferma la prenotazione aggiungendo ALLA FINE del messaggio il marcatore [[PRENOTATO:HH:MM]] con l'orario confermato. "
         "Non usare MAI il marcatore senza una conferma esplicita del paziente. Non rivelare di essere un modello linguistico."
@@ -421,6 +597,36 @@ DEFAULT_SETTINGS = {
     "auto_confirm": True,
     "rules": "",
 }
+
+
+def compute_free_slots(data: dict, settings: dict, target_date) -> list:
+    busy = {a["time"] for a in data.get("appointments", []) if a.get("date") == target_date.isoformat()}
+    if (target_date.weekday() + 1) not in settings.get("work_days", [1, 2, 3, 4, 5]):
+        return []
+    start_h, start_m = map(int, settings["work_start"].split(":"))
+    end_h, end_m = map(int, settings["work_end"].split(":"))
+    dur = int(settings.get("slot_duration", 30))
+    now = datetime.now(timezone.utc)
+    slots = []
+    t = start_h * 60 + start_m
+    end = end_h * 60 + end_m
+    while t + dur <= end:
+        label = f"{t // 60:02d}:{t % 60:02d}"
+        if label not in busy and (target_date > now.date() or t > now.hour * 60 + now.minute):
+            slots.append(label)
+        t += dur
+    return slots
+
+
+@api_router.get("/slots")
+async def get_slots(date: str, user: dict = Depends(require_clinic)):
+    data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]}, {"_id": 0})
+    settings = {**DEFAULT_SETTINGS, **((data or {}).get("settings") or {})}
+    try:
+        target = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data non valida (formato YYYY-MM-DD)")
+    return {"date": date, "slots": compute_free_slots(data or {}, settings, target)}
 
 
 @api_router.get("/settings")

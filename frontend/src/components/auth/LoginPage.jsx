@@ -27,6 +27,10 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [grad, setGrad] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -55,6 +59,20 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const submitForgot = async (e) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail.trim() }),
+      });
+    } catch {}
+    setForgotSent(true);
+    setForgotLoading(false);
   };
 
   return (
@@ -171,6 +189,20 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <div className="-mt-2 text-right">
+              <button
+                data-testid="forgot-password-link"
+                type="button"
+                onClick={() => {
+                  setForgotOpen(true);
+                  setForgotSent(false);
+                }}
+                className="text-xs text-cyan-400/70 transition-colors hover:text-cyan-300"
+              >
+                Password dimenticata?
+              </button>
+            </div>
+
             {error && (
               <motion.p
                 data-testid="login-error"
@@ -227,6 +259,79 @@ export default function LoginPage() {
           </p>
         </motion.div>
       </div>
+
+      {forgotOpen && (
+        <div
+          data-testid="forgot-password-modal"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-6 backdrop-blur-sm"
+          onClick={() => setForgotOpen(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.94, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            onClick={(e) => e.stopPropagation()}
+            className="glass w-full max-w-md rounded-3xl p-8"
+          >
+            {forgotSent ? (
+              <div className="text-center">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-emerald-400/40 bg-emerald-400/10">
+                  <Mail className="h-6 w-6 text-emerald-300" />
+                </span>
+                <h3 className="mt-4 font-display text-xl font-bold text-slate-50">Controlla la tua email</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                  Se l'indirizzo è registrato, riceverai a breve il link per reimpostare la password (valido 1 ora).
+                </p>
+                <button
+                  data-testid="forgot-close-button"
+                  onClick={() => setForgotOpen(false)}
+                  className="mt-6 w-full rounded-xl border border-slate-700 py-3 text-sm font-semibold text-slate-300 transition-colors hover:bg-slate-800"
+                >
+                  Chiudi
+                </button>
+              </div>
+            ) : (
+              <>
+                <h3 className="font-display text-xl font-bold text-slate-50">Password dimenticata?</h3>
+                <p className="mt-1.5 text-sm text-slate-500">
+                  Inserisci l'email del tuo studio: ti invieremo il link per reimpostare la password.
+                </p>
+                <form onSubmit={submitForgot} className="mt-6 space-y-4">
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                    <input
+                      data-testid="forgot-email-input"
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      placeholder="dottore@studioclinico.it"
+                      className="w-full rounded-xl border border-slate-700/80 bg-slate-900/60 py-3.5 pl-11 pr-4 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-400/60"
+                    />
+                  </div>
+                  <button
+                    data-testid="forgot-submit-button"
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 py-3.5 font-display text-sm font-bold text-slate-950 shadow-[0_0_26px_rgba(0,245,212,0.3)] transition-all hover:shadow-[0_0_40px_rgba(0,245,212,0.45)] disabled:opacity-70"
+                  >
+                    {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {forgotLoading ? "Invio in corso…" : "Invia link di reset"}
+                  </button>
+                  <button
+                    data-testid="forgot-cancel-button"
+                    type="button"
+                    onClick={() => setForgotOpen(false)}
+                    className="w-full rounded-xl border border-slate-700 py-3 text-sm font-semibold text-slate-300 transition-colors hover:bg-slate-800"
+                  >
+                    Annulla
+                  </button>
+                </form>
+              </>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

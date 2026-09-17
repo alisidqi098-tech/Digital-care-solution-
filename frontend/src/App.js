@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import Lenis from "lenis";
 import api from "@/lib/api";
 import LoginPage from "@/components/auth/LoginPage";
+import ResetPasswordPage from "@/components/auth/ResetPasswordPage";
 import DashboardView from "@/components/dashboard/DashboardView";
 import AdminConsole from "@/components/admin/AdminConsole";
 
@@ -70,6 +71,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route
               path="/"
               element={

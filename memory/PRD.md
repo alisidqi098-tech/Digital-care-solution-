@@ -49,8 +49,14 @@ Vedi /app/memory/test_credentials.md — admin@digitalcare.ai / Admin2026! ; bel
 - Modifica Appuntamenti: id su tutti gli appuntamenti (migrazione), PATCH/DELETE /api/calendar/appointments/{id}, bottoni sposta/cancella nel dettaglio giorno con modale e doppia conferma
 - AIFace: occhi che si muovono con direzione e intervalli casuali (non ripetitivo), blink mantenuto, nessuna bocca
 
+## Implementato (17 Set 2026 — settima iterazione)
+- Slot Liberi Reali: compute_free_slots da orari/giorni/durata slot delle impostazioni meno appuntamenti occupati; endpoint /api/slots, strip "Slot liberi oggi" in dashboard, chat AI propone slot reali (non più fissi 11:30/16:00)
+- Reset Password via email: Resend managed (EMERGENT_EMAIL_KEY), POST /api/auth/forgot-password (rate limit 3/15min, no user enumeration) + /api/auth/reset-password (token 1h, single-use), pagina /reset-password, modale "Password dimenticata?" sulla login, email HTML brandizzata dark. Nota: invio verificato 202 su delivered@resend.dev; l'email demo bellini@studiobellini.it è fittizia e viene bloccata dal proxy anti-undeliverable (con email reali funziona)
+- Faccina AI hero: grande (96px) centrata in cima alla dashboard con pulse ring, saluto centrato
+- Agenda del giorno ordinata per orario
+
 ## Backlog
-- P2: Reset password self-service
+- P2: Dati reali per clinica (oggi ogni nuova clinica parte con dati demo)
 - P2: Reset password self-service
 - P2: Dati reali per clinica (oggi ogni nuova clinica parte con dati demo)
 - P2: Invio report PDF via email settimanale automatico (Resend)
