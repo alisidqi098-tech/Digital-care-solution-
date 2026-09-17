@@ -1,4 +1,5 @@
-import { Bell, Bot, ChevronDown } from "lucide-react";
+import { Bot, ChevronDown } from "lucide-react";
+import { NotificationsPanel } from "./NotificationsPanel";
 
 const AVATAR =
   "https://images.unsplash.com/photo-1622253692010-333f2da6031d?crop=entropy&cs=srgb&fm=jpg&w=400&q=80";
@@ -36,17 +37,7 @@ export const TopBar = ({ clinicName, doctorName, notifications = 0 }) => (
         </span>
       </div>
 
-      <button
-        data-testid="topbar-notifications"
-        className="relative flex h-10 w-10 items-center justify-center rounded-full border border-cyan-400/15 bg-[#0D1320]/70 text-slate-300 transition-colors hover:border-cyan-400/40 hover:text-cyan-300"
-      >
-        <Bell className="h-4.5 w-4.5" />
-        {notifications > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-cyan-400 px-1 font-mono text-[10px] font-bold text-slate-950 shadow-[0_0_10px_rgba(0,245,212,0.6)]">
-            {notifications}
-          </span>
-        )}
-      </button>
+      <NotificationsPanel />
 
       <div data-testid="topbar-user-profile" className="flex items-center gap-3">
         <img

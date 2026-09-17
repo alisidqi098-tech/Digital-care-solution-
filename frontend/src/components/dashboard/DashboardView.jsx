@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkle, Loader2 } from "lucide-react";
+import { Sparkle, Loader2, FileDown } from "lucide-react";
 import api from "@/lib/api";
+import { downloadFile } from "@/lib/download";
 import { useAuth } from "@/App";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { MetricCards } from "./MetricCards";
 import { AgendaLive } from "./AgendaLive";
 import { Waitlist } from "./Waitlist";
-import { LiveChat } from "./LiveChat";
+import { LiveChatAI } from "./LiveChatAI";
+import CalendarView from "./CalendarView";
 import { PlaceholderView } from "./PlaceholderView";
 import BackgroundFX from "./BackgroundFX";
 
@@ -50,12 +52,10 @@ export default function DashboardView() {
       <BackgroundFX />
       <Sidebar active={view} onNavigate={setView} onLogout={logout} />
       <div className="relative z-10 pl-20">
-        <TopBar
-          clinicName={data?.clinic?.name || user.clinic_name}
-          doctorName={user.name}
-          notifications={data?.notifications ?? 0}
-        />
-        {view !== "dashboard" ? (
+        <TopBar clinicName={data?.clinic?.name || user.clinic_name} doctorName={user.name} />
+        {view === "calendario" ? (
+          <CalendarView />
+        ) : view !== "dashboard" ? (
           <PlaceholderView view={view} />
         ) : !data ? (
           <div className="flex h-[60vh] items-center justify-center">
@@ -63,20 +63,33 @@ export default function DashboardView() {
           </div>
         ) : (
           <main data-testid="dashboard-main" className="mx-auto max-w-[1500px] space-y-7 px-6 pb-16 pt-8 lg:px-10">
-            <header>
-              <MaskedLine>
-                <p className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300/70">
-                  {today} — Panoramica dello studio
-                </p>
-              </MaskedLine>
-              <MaskedLine delay={0.12}>
-                <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-50 sm:text-4xl">
-                  Buongiorno,{" "}
-                  <span className="bg-gradient-to-r from-cyan-300 to-emerald-300 bg-clip-text text-transparent">
-                    {user.name}
-                  </span>
-                </h1>
-              </MaskedLine>
+            <header className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <MaskedLine>
+                  <p className="font-mono text-xs uppercase tracking-[0.3em] text-cyan-300/70">
+                    {today} — Panoramica dello studio
+                  </p>
+                </MaskedLine>
+                <MaskedLine delay={0.12}>
+                  <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-slate-50 sm:text-4xl">
+                    Buongiorno,{" "}
+                    <span className="bg-gradient-to-r from-cyan-300 to-emerald-300 bg-clip-text text-transparent">
+                      {user.name}
+                    </span>
+                  </h1>
+                </MaskedLine>
+              </div>
+              <motion.button
+                data-testid="download-roi-report"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                onClick={() => downloadFile("/report/roi", "report-roi.pdf")}
+                className="flex items-center gap-2 rounded-xl border border-cyan-400/35 bg-cyan-400/[0.08] px-5 py-3 font-display text-sm font-bold text-cyan-300 transition-all hover:bg-cyan-400/15 hover:shadow-[0_0_24px_rgba(0,245,212,0.25)]"
+              >
+                <FileDown className="h-4 w-4" />
+                Report ROI Settimanale
+              </motion.button>
             </header>
 
             <motion.div
@@ -104,7 +117,7 @@ export default function DashboardView() {
                 <Waitlist entries={data.waitlist} />
               </div>
               <div className="xl:col-span-3">
-                <LiveChat script={data.chat_script} patientName={data.chat_patient} />
+                <LiveChatAI patientName={data.chat_patient} />
               </div>
             </div>
           </main>

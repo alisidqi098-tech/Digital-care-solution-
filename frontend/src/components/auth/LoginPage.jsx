@@ -44,6 +44,19 @@ export default function LoginPage() {
     }
   };
 
+  const quickLogin = async (demoEmail, demoPassword) => {
+    setError("");
+    setLoading(true);
+    try {
+      await login(demoEmail, demoPassword);
+      navigate("/", { replace: true });
+    } catch {
+      setError("Accesso demo non riuscito. Riprova.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="relative grid min-h-screen lg:grid-cols-2">
       <BackgroundFX />
@@ -180,6 +193,34 @@ export default function LoginPage() {
               {loading ? "Accesso in corso…" : "Accedi alla Dashboard"}
             </button>
           </form>
+
+          <div className="mt-7">
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-slate-800" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.25em] text-slate-600">Accesso demo rapido</span>
+              <span className="h-px flex-1 bg-slate-800" />
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                data-testid="quick-login-admin"
+                type="button"
+                onClick={() => quickLogin("admin@digitalcare.ai", "Admin2026!")}
+                disabled={loading}
+                className="rounded-xl border border-cyan-400/30 bg-cyan-400/[0.07] py-3 text-xs font-bold text-cyan-300 transition-all hover:bg-cyan-400/15 hover:shadow-[0_0_18px_rgba(0,245,212,0.2)] disabled:opacity-60"
+              >
+                Entra come Super Admin
+              </button>
+              <button
+                data-testid="quick-login-clinic"
+                type="button"
+                onClick={() => quickLogin("bellini@studiobellini.it", "Bellini2026!")}
+                disabled={loading}
+                className="rounded-xl border border-emerald-400/30 bg-emerald-400/[0.07] py-3 text-xs font-bold text-emerald-300 transition-all hover:bg-emerald-400/15 hover:shadow-[0_0_18px_rgba(0,255,135,0.2)] disabled:opacity-60"
+              >
+                Entra come Studio Bellini
+              </button>
+            </div>
+          </div>
 
           <p className="mt-6 text-center text-xs text-slate-600">
             Accesso riservato agli studi abilitati da Digital Care AI.

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Bot, Building2, Plus, LogOut, Euro, CalendarCheck, Clock, X, Loader2 } from "lucide-react";
+import { Bot, Building2, Plus, LogOut, Euro, CalendarCheck, Clock, X, Loader2, FileDown } from "lucide-react";
 import api from "@/lib/api";
+import { downloadFile } from "@/lib/download";
 import { useAuth } from "@/App";
 import BackgroundFX from "@/components/dashboard/BackgroundFX";
 
@@ -271,6 +272,14 @@ export default function AdminConsole() {
                       <span className="hidden font-mono text-xs text-slate-500 md:block">
                         {c.appointments_ai} appunt. AI · €{c.value_eur.toLocaleString("it-IT")}
                       </span>
+                      <button
+                        data-testid={`admin-clinic-report-${c.id}`}
+                        onClick={() => downloadFile(`/admin/clinics/${c.id}/report`, `report-roi-${c.name.toLowerCase().replace(/\s+/g, "-")}.pdf`)}
+                        title="Scarica Report ROI"
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-400/[0.07] text-cyan-300 transition-all hover:bg-cyan-400/15 hover:shadow-[0_0_14px_rgba(0,245,212,0.25)]"
+                      >
+                        <FileDown className="h-3.5 w-3.5" />
+                      </button>
                       <button
                         data-testid={`admin-clinic-status-${c.id}`}
                         onClick={() => toggleStatus(c)}

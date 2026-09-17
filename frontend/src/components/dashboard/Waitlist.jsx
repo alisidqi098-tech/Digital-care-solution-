@@ -2,16 +2,20 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, Users, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 export const Waitlist = ({ entries }) => {
   const [calls, setCalls] = useState({});
 
-  const startCall = (id, name) => {
+  const startCall = async (id, name) => {
     setCalls((c) => ({ ...c, [id]: "calling" }));
+    try {
+      await api.post(`/waitlist/${id}/call`);
+    } catch {}
     setTimeout(() => {
       setCalls((c) => ({ ...c, [id]: "done" }));
       toast.success(`L'AI sta chiamando ${name}`, {
-        description: "Riceverai una notifica appena lo slot viene confermato.",
+        description: "Evento registrato nel Centro Notifiche.",
       });
     }, 2200);
   };
