@@ -35,6 +35,9 @@ Vedi /app/memory/test_credentials.md — admin@digitalcare.ai / Admin2026! ; bel
 - Analitiche: endpoint /api/analytics (30 giorni daily seedati deterministicamente per clinica), vista con 4 KPI (conversione chat 83%, conversazioni, prenotazioni, valore) + 3 grafici recharts (andamento appuntamenti area, conversione chat bar, valore cumulato)
 - Memoria Conversazioni: collection conversations, /api/chat/reply accetta conversation_id e persiste messaggi a fine stream (done event ritorna conversation_id), endpoint lista/dettaglio, vista "Chat & Pazienti" con archivio, badge "Prenotato", 3 conversazioni seedate
 
+## Implementato (17 Set 2026 — quarta iterazione)
+- Filtri Analitiche: selettore periodo 7/30/90 giorni (dati seed estesi a 90gg), summary periodo precedente dal backend, badge delta (+/-% e punti) su ogni KPI con "vs N giorni precedenti"
+
 ## Backlog
 - P1: Impostazioni AI (tono, orari, regole) persistite per clinica
 - P2: Reset password self-service

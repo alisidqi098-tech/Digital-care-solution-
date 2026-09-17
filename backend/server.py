@@ -333,20 +333,26 @@ async def get_conversation(conv_id: str, user: dict = Depends(require_clinic)):
 
 
 @api_router.get("/analytics")
-async def get_analytics(user: dict = Depends(require_clinic)):
+async def get_analytics(days: int = 30, user: dict = Depends(require_clinic)):
     data = await db.clinic_data.find_one({"clinic_id": user["clinic_id"]}, {"_id": 0})
-    daily = (data or {}).get("analytics", [])
-    total_chats = sum(d["chats"] for d in daily)
-    total_bookings = sum(d["chat_bookings"] for d in daily)
-    summary = {
-        "total_chats": total_chats,
-        "total_bookings": total_bookings,
-        "conversion_rate": round(total_bookings / total_chats * 100) if total_chats else 0,
-        "appointments_ai": sum(d["appointments_ai"] for d in daily),
-        "value_eur": sum(d["value_eur"] for d in daily),
-        "recovered": sum(d["recovered"] for d in daily),
-    }
-    return {"daily": daily, "summary": summary}
+    all_daily = (data or {}).get("analytics", [])
+    days = max(1, min(days, 90))
+    daily = all_daily[-days:]
+    previous = all_daily[-2 * days:-days] if len(all_daily) >= 2 * days else []
+
+    def summarize(rows):
+        total_chats = sum(d["chats"] for d in rows)
+        total_bookings = sum(d["chat_bookings"] for d in rows)
+        return {
+            "total_chats": total_chats,
+            "total_bookings": total_bookings,
+            "conversion_rate": round(total_bookings / total_chats * 100) if total_chats else 0,
+            "appointments_ai": sum(d["appointments_ai"] for d in rows),
+            "value_eur": sum(d["value_eur"] for d in rows),
+            "recovered": sum(d["recovered"] for d in rows),
+        }
+
+    return {"daily": daily, "summary": summarize(daily), "previous": summarize(previous), "days": days}
 
 
 def build_roi_pdf(clinic: dict, metrics: dict) -> bytes:
@@ -704,7 +710,7 @@ def generate_analytics(clinic_id: str) -> list:
     rng = random.Random(clinic_id)
     today = datetime.now(timezone.utc).date()
     out = []
-    for i in range(29, -1, -1):
+    for i in range(89, -1, -1):
         d = today - timedelta(days=i)
         weekday = d.weekday() < 5
         base = rng.randint(2, 5) if weekday else rng.randint(0, 1)
@@ -780,7 +786,7 @@ async def migrate_clinic_data():
         appts = data.get("appointments", [])
         if appts and "date" not in appts[0]:
             updates["appointments"] = generate_appointments()
-        if "analytics" not in data:
+        if len(data.get("analytics", [])) < 90:
             updates["analytics"] = generate_analytics(data["clinic_id"])
         if updates:
             await db.clinic_data.update_one({"_id": data["_id"]}, {"$set": updates})
