@@ -23,6 +23,16 @@ function AuthProvider({ children }) {
   });
 
   const login = useCallback(async (email, password) => {
+    // BYPASS TEMPORANEO: Ti fa accedere direttamente per testare il frontend
+    if (email.trim() === "alisidqi098@gmail.com") {
+      const demoUser = { email: "alisidqi098@gmail.com", name: "Ali", role: "admin" };
+      localStorage.setItem("dca_token", "dev_token_bypass");
+      localStorage.setItem("dca_user", JSON.stringify(demoUser));
+      setUser(demoUser);
+      return demoUser;
+    }
+
+    // VERA CHIAMATA API: Da usare quando il backend e il database saranno pronti
     const { data } = await api.post("/auth/login", { email, password });
     localStorage.setItem("dca_token", data.access_token);
     localStorage.setItem("dca_user", JSON.stringify(data.user));
