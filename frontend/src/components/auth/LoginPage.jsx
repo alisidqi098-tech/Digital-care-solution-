@@ -47,7 +47,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
   const submitForgot = async (e) => {
     e.preventDefault();
     setForgotLoading(true);
