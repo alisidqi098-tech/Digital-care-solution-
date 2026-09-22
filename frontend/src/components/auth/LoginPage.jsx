@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Bot, Mail, Lock, Loader2 } from "lucide-react";
-import { useAuth } from "@/App";
+import { useAuth } from "@/AuthContext";
 import BackgroundFX from "@/components/dashboard/BackgroundFX";
 
 const MaskedLine = ({ children, delay = 0, className = "", onComplete }) => (
