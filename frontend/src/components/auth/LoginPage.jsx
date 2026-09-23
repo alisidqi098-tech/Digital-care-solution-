@@ -47,6 +47,7 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+  {/* <BackgroundFX/> */}
   const submitForgot = async (e) => {
     e.preventDefault();
     setForgotLoading(true);
