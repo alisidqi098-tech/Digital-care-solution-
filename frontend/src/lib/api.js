@@ -8,8 +8,9 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("dca_token");
     // Il ?.url evita il crash se config.url è indefinito
-    if (token && config?.url && !config.url.includes("/auth")) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token && typeof config?.url === "string" && !config.url.includes("/auth")) {
+
+    config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
