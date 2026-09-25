@@ -20,7 +20,7 @@ const MaskedLine = ({ children, delay = 0, className = "", onComplete }) => (
 );
 
 export default function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login } = useContext(AuthContext) || {};
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
